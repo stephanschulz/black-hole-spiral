@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html{color-scheme:light dark}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Flat Cable Clash Map</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#EDF1F3; --panel:#FFFFFF; --sunk:#E3E9ED; --rule:#D2DAE0;
+  --ink:#17202A; --muted:#5C6B76; --faint:#9AA9B3;
+  --accent:#B9791B; --accent-soft:#E8A33D;
+  --ok:#2E8468; --bad:#C43D50;
+  --spiral:#C08A32; --rib:#B6C2CA; --tail:#3E7CA6; --hl:#7A3FA8; --ctrl:#46566B;
+  --shadow:0 1px 2px rgba(20,32,42,.06),0 8px 24px rgba(20,32,42,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131A21; --panel:#1A242D; --sunk:#141C23; --rule:#2B3843;
+    --ink:#DDE5EB; --muted:#8698A5; --faint:#5F717E;
+    --accent:#E8A33D; --accent-soft:#F0BC6E;
+    --ok:#45A98A; --bad:#E2596B;
+    --spiral:#E0A040; --rib:#32424E; --tail:#6FB3DC; --hl:#C08BE8; --hl:#C08BE8; --tail:#6FB3DC;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131A21; --panel:#1A242D; --sunk:#141C23; --rule:#2B3843;
+  --ink:#DDE5EB; --muted:#8698A5; --faint:#5F717E;
+  --accent:#E8A33D; --accent-soft:#F0BC6E;
+  --ok:#45A98A; --bad:#E2596B;
+  --spiral:#E0A040; --rib:#32424E; --tail:#6FB3DC; --hl:#C08BE8;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding-inline:20px; padding-block:28px 56px;
+  display:flex; flex-direction:column; gap:26px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+
+header h1{margin:6px 0 0; font-size:clamp(28px,4.4vw,42px); font-weight:700;
+  letter-spacing:-.022em; text-wrap:balance}
+header p.lede{margin:10px 0 0; max-width:64ch; color:var(--muted); font-size:16.5px}
+header p.lede b{color:var(--ink); font-weight:600}
+
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px}
+.tile{background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  padding:14px 16px 13px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:3px}
+.tile .v{font-family:"IBM Plex Mono",monospace; font-size:30px; font-weight:600;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted)}
+.tile .sub{font-size:12.5px; color:var(--faint)}
+.tile.flag{border-left:3px solid var(--bad)}
+.tile.good{border-left:3px solid var(--ok)}
+
+.work{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,1fr); gap:20px; align-items:start}
+@media (max-width:820px){.work{grid-template-columns:1fr}}
+
+.stage{background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  box-shadow:var(--shadow); padding:14px; position:relative}
+.stage canvas{cursor:crosshair}
+#tip{position:absolute; pointer-events:none; opacity:0; transition:opacity .09s;
+  background:var(--ground); border:1px solid var(--accent); border-radius:8px;
+  padding:9px 11px; box-shadow:var(--shadow); max-width:230px; z-index:5;
+  font-size:12.5px; line-height:1.45}
+#tip.on{opacity:1}
+#tip .h{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:11px;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--accent); display:block;
+  margin-bottom:4px}
+#tip .k{color:var(--muted)} #tip b{font-weight:600}
+#tip .v{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+#tip .bad{color:var(--bad); font-weight:600} #tip .ok{color:var(--ok); font-weight:600}
+.stage canvas{display:block; width:100%; max-width:100%; aspect-ratio:1/1;
+  min-height:280px; border-radius:6px}
+.legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:12.5px; color:var(--muted)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;
+  vertical-align:1px}
+
+.panel{background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  box-shadow:var(--shadow); padding:16px 16px 18px; display:flex; flex-direction:column; gap:18px}
+.ctl{display:flex; flex-direction:column; gap:7px}
+.ctl .row{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
+.ctl label{font-weight:600; font-size:13.5px}
+.ctl .val{font-family:"IBM Plex Mono",monospace; font-size:13.5px; color:var(--accent);
+  font-variant-numeric:tabular-nums}
+.ctl .hint{font-size:12px; color:var(--faint); line-height:1.4}
+.fixed{border-top:1px solid var(--rule); padding-top:12px; display:flex;
+  flex-direction:column; gap:5px; font-size:12.5px}
+.fixed .h{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:2px}
+.fixed div{display:flex; justify-content:space-between; gap:12px}
+.fixed span{color:var(--faint)}
+.fixed b{font-family:"IBM Plex Mono",monospace; font-weight:500; color:var(--ink)}
+input[type=range]{width:100%; accent-color:var(--accent); height:22px; margin:0}
+input[type=range]:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px}
+.seg{display:flex; border:1px solid var(--rule); border-radius:8px; overflow:hidden}
+.seg button{flex:1; appearance:none; border:0; background:var(--sunk); color:var(--muted);
+  font-family:Archivo,sans-serif; font-size:12.5px; font-weight:600; padding:8px 4px; cursor:pointer}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--panel)}
+.seg button:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.act{appearance:none; border:1px solid var(--accent); background:transparent; color:var(--accent);
+  font-family:Archivo,sans-serif; font-weight:600; font-size:13.5px; padding:9px 12px;
+  border-radius:8px; cursor:pointer}
+.act:hover{background:var(--accent); color:var(--panel)}
+.act:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.chart{background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  box-shadow:var(--shadow); padding:16px}
+.chart h2,.tablewrap h2{margin:0 0 2px; font-size:18px; font-weight:600; letter-spacing:-.01em}
+.chart p.cap,.tablewrap p.cap{margin:0 0 12px; font-size:13px; color:var(--muted); max-width:72ch}
+.chart canvas{display:block; width:100%; height:190px; min-height:190px}
+
+.tablewrap{background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  box-shadow:var(--shadow); padding:16px}
+.scroll{overflow-x:auto; max-height:380px; overflow-y:auto; border:1px solid var(--rule);
+  border-radius:8px}
+table{border-collapse:collapse; width:100%; min-width:620px}
+th,td{padding:7px 12px; text-align:right; white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky; top:0; background:var(--sunk); color:var(--muted);
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; font-weight:500; border-bottom:1px solid var(--rule); z-index:1}
+tbody td{font-family:"IBM Plex Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums;
+  border-bottom:1px solid var(--rule)}
+tbody tr:last-child td{border-bottom:0}
+tr.hit td{background:color-mix(in srgb,var(--bad) 11%,transparent)}
+tr.lit td{box-shadow:inset 3px 0 0 var(--hl)}
+tr.lit td:first-child{font-weight:700; color:var(--hl)}
+.pill{display:inline-block; padding:1px 7px; border-radius:99px; font-size:11px; font-weight:600;
+  font-family:Archivo,sans-serif}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent); color:var(--ok)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 18%,transparent); color:var(--bad)}
+
+#err{display:none; background:color-mix(in srgb,var(--bad) 14%,transparent);
+  border:1px solid var(--bad); color:var(--bad); border-radius:8px; padding:10px 14px;
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px}
+footer{border-top:1px solid var(--rule); padding-top:16px; color:var(--muted); font-size:13px}
+footer ul{margin:8px 0 0; padding-left:18px} footer li{margin:4px 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Black-hole spiral &middot; 9 mm flat cable every 2.5 m &middot; 15 numbered ribs, 57 teeth each</div>
+  <h1>Flat Cable Clash Map</h1>
+  <p class="lede">A joint and its flat cable occupy <b>24&nbsp;mm</b> of tube; a rib tooth is
+  <b>3.5&nbsp;mm</b>. So a joint clears only if its centre is more than <b>13.75&nbsp;mm</b> from
+  a tooth. That threshold falls cleanly between your six sightings &mdash; the three that foul sit
+  at gaps of 7.1, 0.4 and 0.2&nbsp;mm, the three that clear at 19.7, 19.9 and 36.1 &mdash; so the
+  model is pinned by measurement, not fitted.</p>
+</header>
+
+<div id="err" role="alert"></div>
+<section class="tiles" id="tiles"></section>
+
+<section class="work">
+  <div class="stage">
+    <canvas id="map" width="900" height="900" role="img"
+      aria-label="Plan view of the LED spiral with the 15 metal ribs and the cable exits marked"></canvas>
+    <div id="tip" role="status"></div>
+    <div class="legend">
+      <span><i style="background:var(--spiral)"></i>tube on the teeth</span><span><i style="background:var(--tail)"></i>the centre section, off the ribs</span>
+      <span><i style="background:var(--rib)"></i>15 ribs, 3.5&nbsp;mm thick, at 6&deg;&nbsp;+&nbsp;24k</span><span><i style="background:var(--accent-soft)"></i>860 teeth, 9.97&nbsp;mm pitch</span><span style="color:var(--accent)">01&ndash;15 &middot; rib numbers as cut in the metal</span><span><i style="background:var(--bad)"></i>cable clashes with a rib</span><span><i style="background:var(--hl)"></i>highlighted 5 m tube</span><span><i style="background:var(--ctrl)"></i>controllers 1&ndash;4, clockwise from ribs 13+14</span>
+      <span><i style="background:var(--ok)"></i>junction clear</span>
+      <span><i style="background:var(--bad)"></i>junction on the obstacle</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <div class="row"><label for="first">Tube in the centre</label>
+        <span class="val" id="firstV">0.66 m</span></div>
+      <input type="range" id="first" min="0" max="1600" step="10" value="660">
+      <p class="hint">The blue length in the middle, from the tube's tip to where the winding
+      starts on rib&nbsp;03. This is the only thing you can change &mdash; and it slides every
+      cable along the spiral together.</p>
+    </div>
+
+    <div class="ctl">
+      <div class="row"><label for="tube">Highlight 5 m tube</label>
+        <span class="val" id="tubeV">none</span></div>
+      <input type="range" id="tube" min="0" max="28" step="1" value="0">
+      <p class="hint" id="tubeInfo">0 turns it off. Lights the tube's 5&nbsp;m run and marks
+      its start, its 2.5&nbsp;+&nbsp;2.5 joint and its end.</p>
+    </div>
+
+    <button class="act" type="button" id="best">Best fit to your six sightings</button>
+
+    <div class="fixed">
+      <span class="h">Fixed by the metal and the tube</span>
+      <div><span>Joint + cable</span><b>24 mm, every 2.5 m</b></div>
+      <div><span>Rib tooth</span><b>3.5 mm</b></div>
+      <div><span>Winding</span><b>1 tooth/turn &middot; 57 turns</b></div>
+      <div><span>Innermost tooth</span><b>r = 104.75 mm</b></div>
+      <div><span>Tooth pitch</span><b>9.97 mm</b></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="chart">
+  <h2>Every phase, scanned</h2>
+  <p class="cap">Cables clashing, for every length of centre tube. The dotted line is where you
+  are; the green band is where the model reproduces all five things you have seen on the wall.
+  Only inside that band are the predictions worth acting on.</p>
+  <canvas id="scan" width="1600" height="380"></canvas>
+</section>
+
+<section class="chart">
+  <h2>Why: room runs out toward the middle</h2>
+  <p class="cap">The tube between two rib crossings is <span class="mono">0.4189&nbsp;&times;&nbsp;r</span>
+  &mdash; 280&nbsp;mm at the rim, under 50&nbsp;mm near the centre. The red line is the stretch one
+  cable needs. Near the middle it eats a quarter of the gap; at the rim it is nothing.</p>
+  <canvas id="room" width="1600" height="380"></canvas>
+</section>
+
+<section class="tablewrap">
+  <h2>Every cable exit</h2>
+  <p class="cap">One row per 2.5&nbsp;m section, measured from the tube's tip. Each names the rib
+  and the tooth it lands nearest, counted outward from the innermost &mdash; so you can walk to it.
+  A clash means the cable would come out over the rib.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Cable</th><th>Tube</th><th>From tip</th><th>Turns</th><th>Radius</th>
+        <th>Rib</th><th>Holder</th><th>Clearance</th><th>Verdict</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="eyebrow">How this is worked out</div>
+  <ul>
+    <li>The path is taken from the <b>metal body</b>, not the camera scan. Every rib's top edge
+      was re-read from its B-rep outline; 860 teeth came out, pitch 10.00&nbsp;mm on all fifteen
+      ribs. The rib numbers were read the same way &mdash; they are cut through the plate at
+      r&nbsp;&asymp;&nbsp;115&ndash;150.</li>
+    <li><b>Where this still disagrees with your wall.</b> At 1 tooth/turn the tooth NUMBER comes
+      out right &mdash; rib&nbsp;05's 6th crossing is its 6th tooth &mdash; but the arc to get there
+      is 5.33&nbsp;m against the 5.00&nbsp;m your two tubes give, so the path here runs about
+      6&nbsp;% long. At 2 teeth/turn the arc is closer but the tooth number is 11, not 6.
+      Something in my radii or in the centre length is off; the rate control is there so you can
+      set what you actually see rather than take my word.</li>
+    <li>Tooth&nbsp;#n followed around the ring gains <b>10&nbsp;mm of radius per turn</b> (straight-line
+      fit, residual rms 0.6&nbsp;mm). The teeth are one helix, not fifteen identical combs. Taking
+      every second tooth gives a 20&nbsp;mm/turn winding &mdash; the installed strip measures
+      20.0&nbsp;mm/turn.</li>
+    <li><b>How far to trust a prediction.</b> A 1&nbsp;% scale error accumulates to a whole
+      holder gap within a few turns, so joints far from the anchor are indicative, not exact.
+      Re-anchor on the wall as you go &mdash; tell me the next joint you find and its rib and
+      holder, and this re-fits.</li>
+    <li><b>Still open.</b> This path runs 71&nbsp;m; the LED scan's strip is 5400&nbsp;LEDs =
+      77.1&nbsp;m. Turn counts agree (28.3 against 28.7), lengths do not. The scan's outer turn
+      was anchored at r&nbsp;=&nbsp;700 from "1400&nbsp;mm diameter", but 1400&nbsp;mm is the
+      <em>rib tip</em>; the outermost tooth is at 676.</li>
+  </ul>
+</footer>
+</div>
+
+<script>
+const DATA = {"ribAngle":[6.0,30.0,54.0,78.0,102.0,126.0,150.0,174.0,198.0,222.0,246.0,270.0,294.0,318.0,342.0],"ribNo":[12,13,14,15,1,2,3,4,5,6,7,8,9,10,11],"teeth":[[122.0,132.0,142.0,151.5,161.5,171.5,181.5,191.5,201.5,211.0,221.0,231.0,241.0,250.0,260.0,269.5,279.5,289.5,298.5,308.5,318.5,328.5,338.5,348.0,357.5,367.5,377.5,387.5,397.5,406.5,416.0,426.0,436.0,446.0,456.0,465.5,475.0,484.5,494.5,504.5,514.5,524.5,544.0,554.0,564.0,574.0,589.0,599.0,609.0,618.5,628.5,638.5,648.5,658.5,668.5,678.0],[122.5,132.5,142.5,152.5,162.5,172.0,182.0,192.0,202.0,212.0,221.0,231.5,241.0,250.5,260.0,270.0,280.0,290.0,300.0,309.5,319.0,329.0,339.0,349.0,358.5,368.0,378.0,387.5,397.5,407.5,417.0,426.5,436.5,446.5,456.0,466.0,476.0,485.5,495.0,505.0,515.0,525.0,535.0,545.0,559.5,569.5,579.5,589.5,599.5,608.5,619.5,629.5,639.5,649.5,659.0,669.5,678.5],[113.5,123.5,133.0,143.0,153.0,163.0,173.0,183.0,192.5,202.5,212.5,222.5,231.5,241.5,251.5,261.5,271.0,280.5,290.5,300.5,310.5,320.5,330.0,339.5,349.5,359.0,369.0,378.5,388.0,398.0,408.0,418.0,428.0,437.0,446.5,456.5,466.5,476.5,486.0,496.0,506.0,515.5,525.5,535.5,545.5,555.5,570.0,580.0,590.0,600.0,609.5,620.0,630.0,640.0,650.0,660.0,670.0,679.5],[114.0,124.0,134.0,144.0,153.5,163.5,173.5,183.5,193.5,203.0,213.0,223.0,233.0,242.0,252.0,262.0,271.5,282.0,291.5,300.5,310.5,321.0,330.5,340.0,349.5,359.5,369.5,379.5,389.5,399.0,408.0,418.0,428.0,438.0,448.0,457.5,467.0,477.0,486.5,496.5,506.5,516.5,526.5,536.0,546.0,556.0,566.0,576.0,591.0,601.0,610.5,620.5,630.5,640.5,650.5,660.5,670.5,680.0],[115.0,124.5,134.5,144.5,154.5,164.5,174.0,184.0,194.0,204.0,214.0,223.0,233.5,243.0,252.5,262.0,272.0,282.0,292.0,302.0,311.5,321.0,331.0,341.0,351.0,360.5,370.0,380.0,389.5,399.5,409.5,419.0,428.5,438.5,448.5,458.0,468.0,478.0,487.5,497.0,507.0,517.0,527.0,537.0,547.0,561.5,571.5,581.5,591.5,601.5,610.5,621.5,631.5,641.5,651.5,661.0,671.5,680.5],[115.5,125.5,135.0,145.0,155.0,165.0,175.0,184.5,194.5,204.5,214.5,224.5,233.5,243.5,253.5,263.5,273.0,282.5,292.5,302.5,312.5,322.0,331.5,341.5,351.5,361.0,371.0,380.5,390.0,400.0,410.0,420.0,430.0,439.0,448.5,458.5,468.5,478.5,488.0,498.0,508.0,517.5,527.5,537.5,547.5,557.5,572.0,582.0,592.0,602.0,612.0,622.0,632.0,642.0,652.0,662.0,672.0,681.5],[109.5,126.0,136.0,146.0,155.5,165.5,175.5,185.5,195.5,205.0,215.0,225.0,235.0,244.0,254.0,264.0,273.5,284.0,293.5,302.5,312.5,323.0,332.5,342.0,351.5,361.5,371.5,381.5,391.5,401.0,410.0,420.0,430.0,440.0,450.0,459.5,469.0,478.5,488.5,498.5,508.5,518.5,528.5,538.0,548.0,558.0,568.0,582.0,593.0,603.0,612.5,622.5,632.5,642.5,652.5,662.5,672.5,682.0],[116.5,126.5,136.5,146.5,156.5,166.0,176.0,186.0,196.0,206.0,216.0,225.0,235.5,245.0,254.5,264.0,274.0,284.0,294.0,303.5,313.0,323.0,333.0,343.0,353.0,362.5,372.0,381.5,391.5,401.5,411.5,421.0,430.5,440.5,450.5,460.0,470.0,479.5,489.0,499.0,509.0,519.0,529.0,539.0,549.0,563.5,573.5,583.5,593.5,602.5,612.5,623.5,633.5,643.5,653.5,663.0,673.5,682.5],[117.5,127.5,137.0,147.0,157.0,167.0,177.0,186.5,196.5,206.5,216.5,225.5,235.5,245.5,255.5,265.5,275.0,284.5,294.5,304.5,314.5,324.0,333.5,343.5,353.5,363.0,373.0,382.5,392.0,402.0,412.0,422.0,432.0,441.0,450.5,460.5,470.5,480.0,490.0,500.0,510.0,519.5,529.5,539.5,549.5,559.5,574.0,584.0,594.0,604.0,614.0,624.0,634.0,644.0,654.0,664.0,674.0],[118.0,128.0,138.0,148.0,157.5,167.5,177.5,187.5,197.5,207.0,217.0,227.0,237.0,245.5,256.0,266.0,276.0,285.5,295.0,304.5,314.5,325.0,334.5,344.0,353.5,363.5,373.5,383.5,393.5,403.0,412.0,422.0,432.0,442.0,452.0,461.5,471.0,481.0,490.5,500.5,510.5,520.5,530.5,540.0,550.0,560.0,570.0,584.0,595.0,605.0,614.5,624.5,634.5,644.5,654.5,664.5,675.0],[118.5,128.5,138.5,148.5,158.5,168.0,178.0,188.0,198.0,208.0,218.0,227.0,237.0,247.0,256.5,266.0,276.0,286.0,296.0,305.5,315.0,325.0,335.0,345.0,355.0,364.5,374.0,383.5,393.5,403.5,413.5,423.0,432.5,442.5,452.5,462.0,472.0,481.5,491.0,501.0,511.0,521.0,531.0,541.0,551.0,565.5,575.5,585.5,595.5,604.5,615.5,625.0,635.5,645.5,655.5,665.0,675.5],[119.5,129.5,139.0,149.0,159.0,169.0,179.0,188.5,198.5,208.5,218.5,227.5,237.5,247.5,257.5,267.5,277.0,286.5,296.5,306.5,316.5,326.0,335.5,345.5,355.0,365.0,375.0,384.5,394.0,404.0,414.0,424.0,433.5,443.0,452.5,462.5,472.5,482.0,492.0,502.0,511.5,521.5,531.5,541.5,551.5,561.5,576.0,586.0,596.0,606.0,616.0,626.0,636.0,646.0,656.0,666.0,676.0],[120.0,130.0,140.0,149.5,159.5,169.5,179.5,189.5,199.5,209.0,219.0,229.0,239.0,248.0,258.0,268.0,278.0,287.5,297.0,306.5,316.5,327.0,336.5,346.0,355.5,365.5,375.5,385.5,395.5,405.0,414.0,424.0,434.0,444.0,454.0,463.5,473.0,483.0,492.5,502.5,512.5,522.5,532.5,542.0,552.0,562.0,572.0,587.0,597.0,607.0,616.5,626.5,636.5,646.5,656.5,666.5,677.0],[120.5,130.5,140.5,150.5,160.5,170.0,180.0,190.0,200.0,210.0,220.0,229.5,239.0,249.0,258.5,268.0,278.0,288.0,298.0,307.5,317.0,327.0,337.0,347.0,357.0,366.5,376.0,385.5,395.5,405.5,415.5,425.0,434.5,444.5,454.5,464.0,474.0,483.5,493.0,503.0,513.0,523.0,533.0,543.0,553.0,567.5,577.5,587.5,597.5,606.5,617.5,627.5,637.5,647.5,657.0,667.0,677.0],[121.5,131.5,141.0,151.0,161.0,171.0,181.0,190.5,200.5,210.5,220.5,229.5,239.5,249.5,259.5,269.5,279.0,288.5,298.5,308.5,318.5,328.0,337.5,347.5,357.0,367.0,377.0,386.5,396.0,406.0,416.0,426.0,435.5,445.0,454.5,464.5,474.5,484.0,494.0,504.0,513.5,523.5,533.5,543.5,553.5,563.5,578.0,588.0,598.0,608.0,618.0,628.0,638.0,648.0,658.0,668.0,677.5]],"ribT":3.5,"pitch":10.0,"startRib":3,"helixA":104.75,"helixB":9.97,"nMax":56,"teethPerRib":57};
+const TUBE = 2500, RAD = Math.PI/180;
+const state = {first:660, tube:0};
+const JOINT = 24, OBST = 3.5, RATE = 1.00, PERIOD = 2500, SCALE = 1.0;
+/* what you have actually seen on the wall, used to score the fit live */
+const SIGHT = [ {t:3,  ribs:[9,10], lbl:"tooth 3 between ribs 09/10"},
+                {t:6,  on:5,        lbl:"tooth 6 on rib 05"},
+                {t:12, ribs:[8,9],  lbl:"tooth 12 between ribs 08/09"},
+                {t:14, ribs:[4,5],  lbl:"tooth 14 between ribs 04/05"},
+                {t:29, on:7, idx:18, lbl:"cable 18 (tube 9-10) on rib 07 tooth 29"},
+                {t:34, on:4, idx:23, lbl:"cable 23 (tube 12 inner) on rib 04 tooth 34"} ];
+
+
+/* sections are 2.5 m, numbered from the tip; two sections make one 5 m tube.
+   Cable n sits at the boundary where section n ends and section n+1 begins. */
+const tubeOf = k => Math.ceil(k/2);
+const partOf = k => ((k-1)%2)+1;
+function partsAt(n){
+  return {tubeA:tubeOf(n), partA:partOf(n), tubeB:tubeOf(n+1), partB:partOf(n+1)};
+}
+let HIT = [];
+/* four 8-channel controllers, each sitting at the tips of a pair of ribs.
+   Centre = the midpoint of the chord between the two tips, so it sits a little
+   inside the tip circle; the box is laid out along that chord. */
+const RIB_TIP = 696;            // mm, where the ribs end
+const CTRL_W = 120, CTRL_D = 80; // mm, box along the chord x radially
+const CONTROLLERS = [[5,6], [2,3], [13,14], [10,11]];
+function controllerBoxes(){
+  const ang = {}; DATA.ribNo.forEach((n,i)=> ang[n] = DATA.ribAngle[i]);
+  const out = CONTROLLERS.map(([a,b]) => {
+    let A = ang[a], B = ang[b];
+    if(Math.abs(B-A) > 180) { if(B < A) B += 360; else A += 360; }
+    const mid = ((A+B)/2 % 360 + 360) % 360, half = Math.abs(B-A)/2;
+    const rc = RIB_TIP*Math.cos(half*RAD);     // chord midpoint
+    return {ribs:[a,b], mid, rc};
+  });
+  // ID 1 is the one at ribs 13+14; the rest are numbered clockwise from it,
+  // and clockwise on this plan means decreasing angle
+  const zero = out.find(c => c.ribs[0] === 13).mid;
+  out.sort((x,y) => ((zero-x.mid)%360+360)%360 - ((zero-y.mid)%360+360)%360);
+  out.forEach((c,i) => c.id = i+1);
+  return out;
+}
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const halfWidth = () => (OBST + JOINT)/2;
+function sightingScore(){
+  const js = joints(); let hit = 0;
+  for(const o of SIGHT){
+    const list = o.idx !== undefined ? (js[o.idx-1] !== undefined ? [js[o.idx-1]] : []) : js;
+    for(const sPos of list){
+      const k = nearestX(sPos), b = PATH[k].s < sPos ? Math.min(k+1,PATH.length-1)
+                                                     : Math.max(k-1,0);
+      const A = PATH[Math.min(k,b)], B = PATH[Math.max(k,b)];
+      if(o.idx === undefined && A.tooth !== o.t && B.tooth !== o.t) continue;
+      const gap = Math.abs(PATH[k].s - sPos);
+      if(o.on !== undefined){ if(PATH[k].rib === o.on && PATH[k].tooth === o.t
+                                 && gap < halfWidth()){ hit++; break; } }
+      else { const pair=[A.rib,B.rib];
+             if(o.ribs.every(r=>pair.includes(r)) && gap > halfWidth()){ hit++; break; } }
+    }
+  }
+  return hit;
+}
+
+/* path: start on rib 03's innermost tooth, wind outward, climbing `rate` teeth per turn */
+let PATH = null, TAIL = null;
+/* The castellation is one helix: r = A + B*(n + p/15), where n is the tooth number on a rib
+   and p is that rib's position round the ring. Fitted to all 860 measured teeth, rms 1.8 mm.
+   Drawing from the fit rather than from each detected tooth is what makes the spiral even --
+   the raw detections carry +-2 mm of noise, enough to flip a nearest-tooth match by a whole
+   pitch and put a 10 mm step in the spiral. */
+function buildPath(){
+  const A = DATA.helixA, B = DATA.helixB;
+  const i0 = DATA.ribNo.indexOf(DATA.startRib);
+  const a0 = DATA.ribAngle[i0];
+  const X = [];
+  for(let k=0; ;k++){
+    const p = (i0 + k) % 15;
+    const H = i0/15 + RATE*k/15;            // helix coordinate, even in k
+    const r = A + B*H;
+    if(H > DATA.nMax + 14/15) break;
+    const n = Math.round(H - p/15);               // which tooth that is, on this rib
+    X.push({k, th:a0 + 24*k, r, rib:DATA.ribNo[p], tooth:n+1});
+  }
+  let acc = state.first;                          // arc from the tube's tip
+  X[0].s = acc;
+  for(let i=1;i<X.length;i++){
+    const dth = (X[i].th - X[i-1].th)*RAD, rm = (X[i].r + X[i-1].r)/2;
+    acc += SCALE*Math.hypot(dth*rm, X[i].r - X[i-1].r);
+    X[i].s = acc;
+  }
+  PATH = X;
+  // the tube in the empty centre: carry the same spiral inward from rib 03 until it
+  // has used up `state.first` mm of tube. It touches no rib, so it holds no joint risk.
+  const perDeg = RATE*DATA.pitch/360;
+  TAIL = [{th:X[0].th, r:X[0].r, s:state.first}];
+  let left = state.first, th = X[0].th, r = X[0].r;
+  while(left > 0 && r > 15){
+    const dth = 2, r2 = r - perDeg*dth;
+    const ds = Math.hypot(dth*Math.PI/180*(r+r2)/2, r-r2);
+    if(ds <= 0) break;
+    if(ds >= left){ const f = left/ds; TAIL.push({th:th-dth*f, r:r-perDeg*dth*f, s:0}); break; }
+    left -= ds; th -= dth; r = r2; TAIL.push({th, r, s:left});
+  }
+  return X;
+}
+/* a 9 mm cable leaves the back of the tube at the start of every 2.5 m section; the first
+   one is at the tip, so exits sit at 0, 2.5, 5.0 ... m of tube */
+const joints = () => {
+  const out = [], end = PATH[PATH.length-1].s;
+  for(let s = 0; s <= end; s += PERIOD) if(s >= PATH[0].s) out.push(s);
+  return out;
+};
+function nearestX(s){
+  let lo = 0, hi = PATH.length-1;
+  while(lo < hi){ const m=(lo+hi)>>1; if(PATH[m].s < s) lo=m+1; else hi=m; }
+  const a = Math.max(0, lo-1);
+  return Math.abs(PATH[a].s-s) <= Math.abs(PATH[lo].s-s) ? a : lo;
+}
+const clearances = hw => joints().map(s => Math.abs(PATH[nearestX(s)].s - s) - hw);
+
+/* polar position at any arc length, whether that falls in the centre tail or on the ribs */
+function pointAt(sv){
+  const series = sv < PATH[0].s ? TAIL : PATH;
+  let a = 0, b = series.length - 1;
+  for(let i=1;i<series.length;i++){
+    const lo = Math.min(series[i-1].s, series[i].s), hi = Math.max(series[i-1].s, series[i].s);
+    if(sv >= lo && sv <= hi){ a = i-1; b = i; break; }
+  }
+  const d = series[b].s - series[a].s;
+  const f = d === 0 ? 0 : (sv - series[a].s)/d;
+  return {r: series[a].r + f*(series[b].r - series[a].r),
+          th: series[a].th + f*(series[b].th - series[a].th)};
+}
+function fit(cv){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const box = cv.getBoundingClientRect();
+  const w = Math.round(box.width)  || cv.clientWidth  || cv.width  || 600;
+  const h = Math.round(box.height) || cv.clientHeight || cv.height || 600;
+  if(!w || !h) return null;
+  cv.style.height = h + "px";
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h); return {g,w,h};
+}
+
+function drawMap(){
+  const cv = document.getElementById("map"), F = fit(cv); if(!F) return;
+  const {g,w,h} = F, R = 775, pad = 6;
+  const sc = (Math.min(w,h)/2 - pad)/R, cx = w/2, cy = h/2;
+  const P = (x,y) => [cx + x*sc, cy - y*sc];
+  g.strokeStyle = css("--rib"); g.lineWidth = Math.max(1.2, 3.5*sc); g.lineCap = "butt";
+  DATA.ribAngle.forEach(a => {
+    const t = a*RAD;
+    const [x1,y1] = P(105*Math.cos(t),105*Math.sin(t));
+    const [x2,y2] = P(696*Math.cos(t),696*Math.sin(t));
+    g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+  });
+  g.font = '600 12px "IBM Plex Mono",monospace';
+  g.textAlign="center"; g.textBaseline="middle";
+  DATA.ribAngle.forEach((a,i) => {
+    const t = a*RAD, [x,y] = P(722*Math.cos(t), 722*Math.sin(t));
+    g.fillStyle = DATA.ribNo[i]===DATA.startRib ? css("--accent") : css("--muted");
+    g.fillText(String(DATA.ribNo[i]).padStart(2,"0"), x, y);
+  });
+  g.strokeStyle = css("--accent-soft"); g.lineWidth = 1; g.globalAlpha = .5;
+  DATA.ribAngle.forEach((a,i) => {
+    const t = a*RAD, nx = -Math.sin(t), ny = Math.cos(t);
+    for(const r of DATA.teeth[i]){
+      const [x1,y1] = P(r*Math.cos(t)-nx*3.4, r*Math.sin(t)-ny*3.4);
+      const [x2,y2] = P(r*Math.cos(t)+nx*3.4, r*Math.sin(t)+ny*3.4);
+      g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    }
+  });
+  g.globalAlpha = 1;
+  if(TAIL && TAIL.length > 1){
+    g.strokeStyle = css("--tail"); g.lineWidth = Math.max(1.6, 6*sc);
+    g.lineJoin = "round"; g.beginPath();
+    for(let i=0;i<TAIL.length;i++){
+      const t = TAIL[i].th*RAD, [x,y] = P(TAIL[i].r*Math.cos(t), TAIL[i].r*Math.sin(t));
+      i ? g.lineTo(x,y) : g.moveTo(x,y);
+    }
+    g.stroke();
+    const e = TAIL[TAIL.length-1], te = e.th*RAD;
+    const [xe,ye] = P(e.r*Math.cos(te), e.r*Math.sin(te));
+    g.beginPath(); g.arc(xe,ye,4.5,0,6.2832);
+    g.fillStyle = css("--tail"); g.fill();
+    g.strokeStyle = css("--panel"); g.lineWidth = 1.5; g.stroke();
+  }
+  g.strokeStyle = css("--spiral"); g.lineWidth = Math.max(1.4, 6*sc); g.lineJoin="round";
+  g.beginPath();
+  for(let i=0;i<PATH.length;i++){
+    const t = PATH[i].th*RAD, [x,y] = P(PATH[i].r*Math.cos(t), PATH[i].r*Math.sin(t));
+    i ? g.lineTo(x,y) : g.moveTo(x,y);
+  }
+  g.stroke();
+  if(state.tube > 0){
+    const end = PATH[PATH.length-1].s;
+    const s0 = (state.tube-1)*5000, s1 = Math.min(state.tube*5000, end);
+    if(s0 < end){
+      const xy = sv => { const q = pointAt(sv), t = q.th*RAD;
+                         return P(q.r*Math.cos(t), q.r*Math.sin(t)); };
+      const rad = sv => { const q = pointAt(sv), t = q.th*RAD;
+                          return [Math.cos(t), Math.sin(t)]; };
+      g.strokeStyle = css("--hl"); g.lineWidth = Math.max(1.8, 7*sc);
+      g.lineJoin = "round"; g.lineCap = "round"; g.beginPath();
+      for(let sv = s0; sv <= s1; sv += 12){
+        const [x,y] = xy(sv);
+        sv === s0 ? g.moveTo(x,y) : g.lineTo(x,y);
+      }
+      g.stroke(); g.lineCap = "butt";
+      const mid = s0 + 2500;
+      const marks = [[s0, "start"], [mid, "2.5+2.5"], [s1, "end"]];
+      g.font = '600 10px "IBM Plex Mono",monospace';
+      marks.forEach(([sv, lbl], i) => {
+        if(sv > end) return;
+        const [x,y] = xy(sv), [ux,uy] = rad(sv);
+        g.beginPath();
+        if(i === 1){                                  // the 2.5 + 2.5 joint: a ring
+          g.arc(x, y, 6.5, 0, 6.2832);
+          g.strokeStyle = css("--hl"); g.lineWidth = 2.2; g.stroke();
+        } else {                                      // start and end: solid, ringed
+          g.arc(x, y, 5, 0, 6.2832);
+          g.fillStyle = css("--hl"); g.fill();
+          g.strokeStyle = css("--panel"); g.lineWidth = 1.6; g.stroke();
+        }
+        g.fillStyle = css("--hl");
+        g.textAlign = ux < -0.3 ? "right" : (ux > 0.3 ? "left" : "center");
+        g.textBaseline = uy < -0.3 ? "top" : (uy > 0.3 ? "bottom" : "middle");
+        g.fillText(lbl, x + ux*13, y - uy*13);
+      });
+    }
+  }
+  const hw = halfWidth(), js = joints(), cl = clearances(hw);
+  HIT.length = 0;                             // rebuilt on every draw
+  js.forEach((s,i) => {
+    const k = nearestX(s);
+    let a = k, b = PATH[k].s < s ? Math.min(k+1, PATH.length-1) : Math.max(k-1, 0);
+    if(a > b){ const t2=a; a=b; b=t2; }
+    const f = PATH[b].s===PATH[a].s ? 0 : (s-PATH[a].s)/(PATH[b].s-PATH[a].s);
+    const rr = PATH[a].r + f*(PATH[b].r-PATH[a].r);
+    const th = (PATH[a].th + f*(PATH[b].th-PATH[a].th))*RAD;
+    const [x,y] = P(rr*Math.cos(th), rr*Math.sin(th));
+    const bad = cl[i] < 0;
+    HIT.push({x, y, i, s, bad, clear:cl[i], k:nearestX(s)});
+    if(bad){ g.beginPath(); g.arc(x,y,11,0,6.2832); g.strokeStyle=css("--bad");
+      g.lineWidth=1.3; g.globalAlpha=.6; g.stroke(); g.globalAlpha=1; }
+    g.beginPath(); g.arc(x,y, bad?6:4.2, 0, 6.2832);
+    g.fillStyle = bad ? css("--bad") : css("--ok"); g.fill();
+    g.strokeStyle = css("--panel"); g.lineWidth=1.5; g.stroke();
+  });
+}
+
+function grid(g,w,h,m,maxY,ticks){
+  g.strokeStyle=css("--rule"); g.lineWidth=1;
+  g.beginPath(); g.moveTo(m.l,h-m.b); g.lineTo(w-m.r,h-m.b); g.stroke();
+  g.font='11px "IBM Plex Mono",monospace'; g.setLineDash([2,4]);
+  for(const v of ticks){
+    const y = h-m.b - v/maxY*(h-m.b-m.t);
+    g.strokeStyle=css("--rule"); g.beginPath(); g.moveTo(m.l,y); g.lineTo(w-m.r,y); g.stroke();
+    g.fillStyle=css("--muted"); g.textAlign="right"; g.textBaseline="middle";
+    g.fillText(v, m.l-8, y);
+  }
+  g.setLineDash([]);
+}
+
+function drawScan(){
+  const cv = document.getElementById("scan"), F = fit(cv); if(!F) return;
+  const {g,w,h} = F, m={l:44,r:12,t:12,b:30};
+  const keepF = state.first;
+  const clash = [], sight = [];
+  for(let f=0; f<=1600; f+=20){
+    state.first = f; buildPath();
+    clash.push(clearances(halfWidth()).filter(v=>v<0).length);
+    sight.push(sightingScore());
+  }
+  state.first = keepF; buildPath();
+  const maxY = Math.max(4, ...clash);
+  const step = Math.max(1, Math.ceil(maxY/4));
+  const ticks=[]; for(let v=0;v<=maxY;v+=step) ticks.push(v);
+  grid(g,w,h,m,maxY,ticks);
+  const X = f => m.l + f/1600*(w-m.l-m.r), Y = v => h-m.b - v/maxY*(h-m.b-m.t);
+  g.textAlign="center"; g.textBaseline="top"; g.fillStyle=css("--muted");
+  for(const mt of [0,0.4,0.8,1.2,1.6]) g.fillText(mt.toFixed(1)+" m", X(mt*1000), h-m.b+7);
+  // where all four sightings are reproduced -- the band worth trusting
+  g.fillStyle = css("--ok"); g.globalAlpha = .17;
+  sight.forEach((v,i)=>{ if(v===6) g.fillRect(X(i*20-10), m.t, X(20)-X(0)+1, h-m.b-m.t); });
+  g.globalAlpha = 1;
+  g.strokeStyle = css("--bad"); g.lineWidth = 2; g.beginPath();
+  clash.forEach((v,i)=>{ const x=X(i*20); i?g.lineTo(x,Y(v)):g.moveTo(x,Y(v)); });
+  g.stroke();
+  g.strokeStyle=css("--ink"); g.lineWidth=1; g.setLineDash([3,3]);
+  g.beginPath(); g.moveTo(X(state.first),m.t); g.lineTo(X(state.first),h-m.b); g.stroke();
+  g.setLineDash([]);
+  g.font='500 11px "IBM Plex Mono",monospace'; g.textAlign="left"; g.textBaseline="top";
+  g.fillStyle = css("--bad"); g.fillRect(w-m.r-150, m.t+5, 14, 2.5);
+  g.fillStyle = css("--muted"); g.fillText("cables clashing", w-m.r-130, m.t);
+  g.fillStyle = css("--ok"); g.globalAlpha=.3; g.fillRect(w-m.r-150, m.t+20, 14, 8);
+  g.globalAlpha=1; g.fillStyle = css("--muted");
+  g.fillText("all 6 sightings agree", w-m.r-130, m.t+15);
+}
+
+function drawRoom(){
+  const cv = document.getElementById("room"), F = fit(cv); if(!F) return;
+  const {g,w,h}=F, m={l:52,r:12,t:12,b:30}, maxY=320;
+  grid(g,w,h,m,maxY,[0,100,200,300]);
+  const X = r => m.l + (r-100)/(700-100)*(w-m.l-m.r);
+  const Y = v => h-m.b - Math.min(v,maxY)/maxY*(h-m.b-m.t);
+  g.textAlign="center"; g.textBaseline="top"; g.fillStyle=css("--muted");
+  for(const r of [200,300,400,500,600,700]) g.fillText(r, X(r), h-m.b+7);
+  g.fillStyle=css("--spiral"); g.globalAlpha=.8;
+  for(let i=0;i<PATH.length-1;i++){
+    g.beginPath(); g.arc(X(PATH[i].r), Y(PATH[i+1].s-PATH[i].s), 2.1, 0, 6.2832); g.fill();
+  }
+  g.globalAlpha=1;
+  const need = OBST + JOINT;
+  g.strokeStyle=css("--bad"); g.lineWidth=2;
+  g.beginPath(); g.moveTo(m.l,Y(need)); g.lineTo(w-m.r,Y(need)); g.stroke();
+  g.fillStyle=css("--bad"); g.textAlign="left"; g.textBaseline="bottom";
+  g.font='500 11px "IBM Plex Mono",monospace';
+  g.fillText("a joint needs "+need.toFixed(0)+" mm", m.l+8, Y(need)-5);
+  g.fillStyle=css("--muted"); g.textAlign="right"; g.textBaseline="top";
+  g.fillText("radius (mm)", w-m.r, h-m.b+7);
+}
+
+function render(){
+  buildPath();
+  document.getElementById("firstV").textContent = (state.first/1000).toFixed(2)+" m";
+  document.getElementById("tubeV").textContent = state.tube ? "tube "+state.tube : "none";
+  {
+    const info = document.getElementById("tubeInfo");
+    if(!state.tube){
+      info.innerHTML = "0 turns it off. Lights the tube's whole 5&nbsp;m run and rings the "
+        + "joint between its two 2.5&nbsp;m sections.";
+    } else {
+      const end = PATH[PATH.length-1].s;
+      const s0 = (state.tube-1)*5000, s1 = Math.min(state.tube*5000, end);
+      if(s0 >= end){ info.innerHTML = "Tube " + state.tube + " is past the end of the run."; }
+      else {
+        const rA = pointAt(s0).r, rB = pointAt(s1).r;
+        const at = sv => { const k = nearestX(sv), X = PATH[k];
+          const bad = Math.abs(X.s - sv) < halfWidth();
+          return `rib ${String(X.rib).padStart(2,"0")} tooth ${X.tooth}` +
+                 (bad ? ' <b style="color:var(--bad)">clash</b>' : "");
+        };
+        const mid = s0 + 2500;
+        info.innerHTML =
+          `<b>Tube ${state.tube}</b> runs ${(s0/1000).toFixed(2)}&ndash;${(s1/1000).toFixed(2)} m `
+          + `from the tip, r ${rA.toFixed(0)}&ndash;${rB.toFixed(0)} mm.<br>`
+          + `&sect;1&nbsp;&rarr;&nbsp;&sect;2 joint (cable ${2*state.tube-1}): `
+          + (mid <= end ? at(mid) : "past the end") + `<br>`
+          + `end of tube (cable ${2*state.tube}): `
+          + (s1 < end ? at(s1) : "past the end");
+      }
+    }
+  }
+
+  const hw = halfWidth(), js = joints(), cl = clearances(hw);
+  const bad = cl.filter(v=>v<0).length, worst = js.length?Math.min(...cl):0;
+  const end = PATH[PATH.length-1];
+  const sg = sightingScore();
+  let first = null;
+  for(let i=0;i<cl.length;i++) if(cl[i] < 0){
+    const X = PATH[nearestX(js[i])];
+    first = {i:i+1, rib:X.rib, tooth:X.tooth}; break;
+  }
+
+  document.getElementById("tiles").innerHTML = `
+    <div class="tile ${bad?'flag':'good'}"><span class="k">Cables clashing</span>
+      <span class="v" style="color:${bad?'var(--bad)':'var(--ok)'}">${bad}<span
+        style="font-size:16px;color:var(--faint)"> / ${js.length}</span></span>
+      <span class="sub">${first ? 'first at rib '+String(first.rib).padStart(2,'0')+
+        ' tooth '+first.tooth+', cable '+first.i : 'none, tip to rim'}</span></div>
+    <div class="tile"><span class="k">Tightest joint</span>
+      <span class="v" style="color:${worst<0?'var(--bad)':'var(--ok)'}">${worst>=0?'+':''}${worst.toFixed(0)}</span>
+      <span class="sub">mm of clear tube</span></div>
+    <div class="tile"><span class="k">Tube needed</span>
+      <span class="v">${(end.s/1000).toFixed(0)}<span style="font-size:16px;color:var(--faint)"> m</span></span>
+      <span class="sub">${Math.ceil(end.s/TUBE)} tubes &middot; ${(PATH.length/15).toFixed(1)} turns
+      &middot; gap between turns ${(RATE*DATA.pitch-7.5).toFixed(0)} mm</span></div>
+    <div class="tile ${sg===6?'good':(sg<5?'flag':'')}"><span class="k">Your sightings matched</span>
+      <span class="v" style="color:${sg===6?'var(--ok)':(sg<5?'var(--bad)':'var(--ink)')}">${sg}<span
+        style="font-size:16px;color:var(--faint)"> / 6</span></span>
+      <span class="sub">${sg===6?'the model agrees with the wall':'only 0.66 m matches what is built &mdash; 0/6 just means you are exploring'}</span></div>
+    <div class="tile"><span class="k">Stretch to keep clear</span>
+      <span class="v">${(OBST+JOINT).toFixed(1)}</span>
+      <span class="sub">mm &mdash; ${JOINT} mm cable + ${OBST} mm obstacle</span></div>`;
+
+  document.getElementById("rows").innerHTML = js.map((s,i)=>{
+    const k = nearestX(s), c = cl[i], X = PATH[k];
+    const yours = X.rib===5 && X.tooth===6 && c < 0;
+    const q = partsAt(i+1);
+    const lit = state.tube > 0 && (q.tubeA === state.tube || q.tubeB === state.tube);
+    const tl = ((i+1)%2) ? `${q.tubeA} &sect;1&ndash;2` : `${q.tubeA}&ndash;${q.tubeB}`;
+    return `<tr class="${c<0?'hit':''}${lit?' lit':''}"><td>${i+1}${yours?' &larr; yours':''}</td>
+      <td>${tl}</td>
+      <td>${(s/1000).toFixed(2)} m</td><td>${(X.k/15).toFixed(1)}</td>
+      <td>${X.r.toFixed(0)} mm</td><td>${String(X.rib).padStart(2,'0')}</td>
+      <td>#${X.tooth}</td><td>${c>=0?'+':''}${c.toFixed(0)} mm</td>
+      <td><span class="pill ${c<0?'bad':'ok'}">${c<0?'clashes':'clear'}</span></td></tr>`;
+  }).join("");
+  drawMap(); drawScan(); drawRoom();
+}
+
+document.getElementById("first").addEventListener("input", e=>{
+  state.first = +e.target.value; render(); });
+document.getElementById("tube").addEventListener("input", e=>{
+  state.tube = +e.target.value; render(); });
+document.getElementById("best").addEventListener("click", ()=>{
+  // slide the centre length to whatever best reproduces the four sightings
+  let bi = state.first, bs = -1, bc = 1e9;
+  for(let f=0; f<=1600; f+=10){
+    state.first = f; buildPath();
+    const g = sightingScore(), c = clearances(halfWidth()).filter(v=>v<0).length;
+    if(g > bs || (g === bs && c < bc)){ bs = g; bc = c; bi = f; }
+  }
+  state.first = bi; document.getElementById("first").value = bi; render();
+});
+function safeRender(){
+  try { render(); document.getElementById("err").style.display = "none"; }
+  catch(e){
+    const box = document.getElementById("err");
+    box.style.display = "block";
+    box.textContent = "Could not draw: " + e.message;
+    console.error(e);
+  }
+}
+const mapEl = document.getElementById("map"), tipEl = document.getElementById("tip");
+function showTip(ev){
+  const b = mapEl.getBoundingClientRect();
+  const mx = ev.clientX - b.left, my = ev.clientY - b.top;
+  let best = null, bd = 15;
+  for(const h of HIT){ const d = Math.hypot(h.x-mx, h.y-my); if(d < bd){ bd = d; best = h; } }
+  if(!best){ tipEl.classList.remove("on"); return; }
+  const n = best.i + 1, P0 = PATH[best.k];
+  const q = partsAt(n);
+  // which two ribs it sits between
+  let a = best.k, c = PATH[best.k].s < best.s ? Math.min(best.k+1, PATH.length-1)
+                                             : Math.max(best.k-1, 0);
+  const lo = Math.min(a,c), hi = Math.max(a,c);
+  const R = x => String(x).padStart(2,"0");
+  const where = best.bad
+    ? `<b class="bad">on rib ${R(P0.rib)}</b>, tooth ${P0.tooth}`
+    : `between <b>rib ${R(PATH[lo].rib)}</b> and <b>rib ${R(PATH[hi].rib)}</b>, tooth ${P0.tooth}`;
+  const join = (n % 2)
+    ? `inside <b>5 m tube ${q.tubeA}</b> &mdash; its section 1 meets section 2`
+    : `<b>5 m tube ${q.tubeA}</b> ends, <b>tube ${q.tubeB}</b> begins`;
+  tipEl.innerHTML =
+    `<span class="h">Cable ${n} of ${HIT.length}</span>` +
+    `${where}<br>${join}<br>` +
+    `<span class="k">cable belongs to</span> tube ${q.tubeB} &sect;${q.partB}<br>` +
+    `<span class="k">from the tip</span> <span class="v">${(best.s/1000).toFixed(2)} m</span>` +
+    ` &middot; <span class="k">r</span> <span class="v">${P0.r.toFixed(0)} mm</span><br>` +
+    `<span class="${best.bad?'bad':'ok'}">` +
+    (best.bad ? `clashes by ${(-best.clear).toFixed(1)} mm` : `clear by ${best.clear.toFixed(0)} mm`) +
+    `</span>`;
+  tipEl.classList.add("on");
+  const w = tipEl.offsetWidth || 220, h2 = tipEl.offsetHeight || 90;
+  tipEl.style.left = Math.max(4, Math.min(mapEl.clientWidth - w - 4, best.x + 14)) + "px";
+  tipEl.style.top  = Math.max(4, Math.min(mapEl.clientHeight - h2 - 4, best.y - h2 - 10)) + "px";
+}
+mapEl.addEventListener("mousemove", showTip);
+mapEl.addEventListener("click", showTip);
+mapEl.addEventListener("mouseleave", ()=> tipEl.classList.remove("on"));
+
+let t; addEventListener("resize", ()=>{clearTimeout(t); t=setTimeout(safeRender,120);});
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change", safeRender);
+
+safeRender();
+// the canvas may still have had no width on that first pass -- draw again once it does
+requestAnimationFrame(safeRender);
+addEventListener("load", safeRender);
+if(window.ResizeObserver){
+  let last = 0;
+  new ResizeObserver(es => {
+    const w = Math.round(es[0].contentRect.width);
+    if(w && w !== last){ last = w; safeRender(); }
+  }).observe(document.getElementById("map"));
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(safeRender);
+</script>
+</body>
+</html>

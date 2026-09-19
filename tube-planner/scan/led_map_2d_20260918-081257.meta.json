@@ -1,0 +1,1 @@
+{"scan_total": 19200, "min_channel": 1, "max_channel": 512, "channels_per_fixture": 1, "multi_artnet": true, "universe": 0, "artnet_ips": ["192.168.0.101", "192.168.0.102", "192.168.0.103", "192.168.0.104"], "artnet_universe_start": 0, "artnet_universes_per_node": 16, "channels_per_strip": 600}
