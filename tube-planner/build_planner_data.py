@@ -79,6 +79,26 @@ HANG_BEND_MM = 120.0           # radius it bends through, from the rim tangent t
 CONTROLLERS = [[13, 14], [10, 11], [5, 6], [2, 3]]
 
 
+# The label on each strip's cable, as printed on the sticker of each controller's lid. The lid lists
+# the strips in the order of Art-Net ports 4, 1, 6, 2, 7, 8, 5, 3 (this order puts both "empty" slots on
+# the two ports that never lit up, and matches the scan on 30 of 32 slots).
+LID_LABELS = {
+    "192.168.0.101": "23 7 2 13 12 21 empty 24",
+    "192.168.0.102": "20 6 26 14 16 17 22 27",
+    "192.168.0.103": "8 1 4 11 15 9 A 25",
+    "192.168.0.104": "19 Y 18 3 5 10 Z empty",
+}
+LID_PORT_ORDER = [4, 1, 6, 2, 7, 8, 5, 3]
+
+
+def cable_label(ip, port):
+    lid = LID_LABELS.get(ip, "").split()
+    for slot, p in enumerate(LID_PORT_ORDER):
+        if p == port and slot < len(lid):
+            return lid[slot], slot + 1
+    return None, None
+
+
 def strip_name(order, n_chain):
     """Strips are named from the centre: the innermost is 1. The short outermost piece of the
     chain is Y and the hanging outer tail is Z."""
@@ -275,7 +295,7 @@ def main():
         ip = r0["ip"]
         cs = [c for c in cross if s0 <= c["g"] < s0 + L]
         info = dict(
-            order=order, name=strip_name(order, len(chain)), strand=k, node=int(r0["node"]), ip=ip,
+            order=order, pos=strip_name(order, len(chain)), strand=k, node=int(r0["node"]), ip=ip,
             port=uni // 2 + 1, universes=[uni, uni + 1] if L > 512 else [uni],
             dmx_first=int(r0["dmx"]), dmx_last=int(strands[k][-1]["dmx"]),
             index_first=int(r0["index"]), index_last=int(strands[k][-1]["index"]),
@@ -360,7 +380,7 @@ def main():
                     passed.append(rib_no[i_])
         f0 = t[0] % 360
         near = sorted(range(15), key=lambda i_: abs((rib_ang[i_] - f0 + 180) % 360 - 180))[:2]
-        outer.append(dict(name="Z", strand=k, ip=ip, node=int(pts[0]["node"]), port=port,
+        outer.append(dict(pos="Z", strand=k, ip=ip, node=int(pts[0]["node"]), port=port,
                           universes=[int(pts[0]["universe"])],
                           leds=len(pts), total=total, dmx_last=int(pts[-1]["dmx"]),
                           th=[round(float(x % 360), 2) for x in t],
@@ -399,6 +419,13 @@ def main():
                     p90=round(float(np.percentile(res, 90)), 1)),
     )
     # helix tooth range each rib actually carries, so a position can also be counted from the rim
+    # what a technician reads: the cable label; fall back to the position if a port has no label
+    for x in strips + outer:
+        lab, slot = cable_label(x["ip"], x["port"])
+        x["name"] = lab if lab and lab != "empty" else x["pos"]
+        x["lid_slot"] = slot
+        x["label_matches"] = x["name"] == x["pos"]
+    out["lidPortOrder"] = LID_PORT_ORDER
     out["ribTeethRange"] = [[round((t[0] - A) / B - p / 15) + 1, round((t[-1] - A) / B - p / 15) + 1]
                             for p, t in enumerate(metal["teeth"])]
     # which node's strips start near which controller (circular mean of start angles)
@@ -425,12 +452,12 @@ def main():
 
     with open(os.path.join(HERE, "strips.csv"), "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["name", "order_outer_to_inner", "strand_id", "ip", "port", "universes", "dmx",
+        w.writerow(["label", "position_from_centre", "lid_slot", "order_outer_to_inner", "strand_id", "ip", "port", "universes", "dmx",
                     "leds", "start_rib", "start_tooth", "start_deg", "end_rib", "end_tooth",
                     "end_deg", "turns", "rib_crossings", "ribs_passed"])
         for s in strips:
             c = s["crossings"]
-            w.writerow([s["name"], s["order"], s["strand"], s["ip"], s["port"],
+            w.writerow([s["name"], s["pos"], s["lid_slot"], s["order"], s["strand"], s["ip"], s["port"],
                         "-".join(map(str, s["universes"])), f'{s["dmx_first"]}-{s["dmx_last"]}',
                         s["leds"], c[0][0] if c else "", c[0][1] if c else "", s["th_start"],
                         c[-1][0] if c else "", c[-1][1] if c else "", s["th_end"], s["turns"],

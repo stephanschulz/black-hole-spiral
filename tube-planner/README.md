@@ -1,5 +1,11 @@
 # Tube junction planner
 
+Online (private until shared): https://claude.ai/artifact/HGbjjGYoMhHDh3CkQqb3mT. To update it, republish
+`tube_junction_planner.html` to that URL.
+
+**Only for the first 6×12 mm unit** (LED scan of 18 Sep 2026). Another unit may route strips to controllers
+and lay the tube on the spiral differently. Give it its own scan, lid labels (`LID_LABELS`) and build.
+
 Open `tube_junction_planner.html` in a browser. Its data is built in, so it needs no server.
 
 The page places every LED of the 18 Sep 2026 pixel-mapper scan (`../pixel mapping scans/`) onto the metal ribs,
@@ -13,10 +19,15 @@ and is checked against the photo of lit strip ends in the same folder. From that
 
 ## Strip names
 
-Strips are named from the centre: **1** is the innermost strip (.103 port 1) and **28** is the outermost
-full strip (.102 port 3). **Y** is the short outer piece (.104 port 1) and **Z** is the hanging outer
-tail (.104 port 5). Data flows Y → 28 → 27 → … → 1. The names are set in `strip_name()` in the build;
-the CSVs carry them in a `name` / `strip` column.
+Strips are shown by their **cable label**, the name on each controller's lid sticker (`LID_LABELS` in the
+build). The lid lists its strips in the order of Art-Net ports 4, 1, 6, 2, 7, 8, 5, 3. Each strip also has
+a **position**, counted from the centre (1 = innermost, ending at the camera). The slider and tables run in
+position order.
+
+Labels and positions agree except in two places. **A** is the 22nd strip, and labels 22–27 sit at positions
+23–28. Labels **17 and 18 are swapped** (label 18 is the 17th strip, label 17 the 18th). The page shows
+out-of-order labels in amber. **Y** is the short outer piece and **Z** the hanging tail. `strips.csv` has
+both columns, and `strip_match_list.csv` is the full match list.
 
 ## Photo overlay
 
@@ -35,6 +46,7 @@ to jump to that joint. `photo_check.py` writes the data for it; the build inline
 | `scan/` | the scan's `.meta.json` (node IPs, used to spot ports that never lit) |
 | `photo_check.py` | finds the marks in the photo, fits the phone pose, pairs marks with predicted strip ends |
 | `photo_check.json`, `photo_check.jpg` | its result, and a static copy of the overlay |
+| `make_manual_figure.py` | writes the map figure for the manual (`../manual/images/tube-planner-map.png`); the photo figure is a copy of `photo_check.jpg` |
 | `photo_check_base.jpg` | the plain photo at 1200 px, inlined into the page for the photo panel |
 | `metal_ribs.json` | 15 rib angles, rib numbers and 860 measured tooth radii (from the B-rep, via planner v1) |
 | `strips.csv` | one row per strip: node, port, universes, start/end rib#tooth, turns, ribs passed |
@@ -70,8 +82,8 @@ The script prints the chain, the rotation, the anchor and check results, and the
 - **Tooth numbers** are helix positions (the count the sightings used). Ribs start at different positions
   (rib 12's innermost tooth is #3), so near the rim, use the from-rim count in the tables.
 - **Assumed:** 300 LEDs per roll, a 24 mm joint, a 3.5 mm tooth, and 1° of angular uncertainty
-  (the "marginal" band). Where each node's strips start pins .102 to C2 (ribs 10+11) and .103 to C3
-  (ribs 5+6). .101 and .104 fall between controllers, so check them at the back.
+  (the "marginal" band). Controllers: the labelled studio photos confirm controller #n = 192.168.0.10n, at ribs 13/14,
+  10/11, 05/06 and 02/03.
 - **Checked against the photo:** all 30 marks pair one-to-one with a predicted strip end: the chain's feed
   (.104 p1 and the tail .104 p5 share it, at ribs 02/03), all 28 hand-offs, and the tip. Median miss 9 mm.
 - **Outer end:** .104 port 1 is a 178-LED (1.5 m) piece fed at 142° that runs clockwise into .102 port 3.
