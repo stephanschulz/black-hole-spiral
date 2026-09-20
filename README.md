@@ -38,3 +38,5 @@ Source and rebuild notes live in [`tube-planner/`](tube-planner/README.md). Afte
 ```
 cp tube-planner/tube_junction_planner.html docs/index.html
 ```
+
+Note: Developed with AI assistance.
