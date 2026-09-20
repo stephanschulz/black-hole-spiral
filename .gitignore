@@ -29,3 +29,7 @@
 *.HEIF
 
 .DS_Store
+
+# README screenshots
+!docs/screenshots/
+!docs/screenshots/*.png

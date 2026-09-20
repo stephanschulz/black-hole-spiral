@@ -1,7 +1,16 @@
 # Tube junction planner
 
-Online (private until shared): https://claude.ai/artifact/HGbjjGYoMhHDh3CkQqb3mT. To update it, republish
-`tube_junction_planner.html` to that URL.
+**Live page:** [https://stephanschulz.ca/black-hole-spiral/](https://stephanschulz.ca/black-hole-spiral/)
+
+![Plan view of the LED spiral on the 15 ribs](../docs/screenshots/planner-map.png)
+
+![Photo overlay of predicted hand-offs](../docs/screenshots/planner-photo.png)
+
+After a rebuild, copy the page so GitHub Pages stays current:
+
+```
+cp tube_junction_planner.html ../docs/index.html
+```
 
 **Only for the first 6×12 mm unit** (LED scan of 18 Sep 2026). Another unit may route strips to controllers
 and lay the tube on the spiral differently. Give it its own scan, lid labels (`LID_LABELS`) and build.
