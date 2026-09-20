@@ -101,3 +101,5 @@ The script prints the chain, the rotation, the anchor and check results, and the
   of that stretch; the other 1.9 m hangs free. The planner draws the hang dashed, and its path is assumed
   (`OFF_CHAIN_LEDS` and `HANG_BEND_MM` in the build). It can be selected on the page like any strip.
 - **Not covered:** .101 port 5 and .104 port 3, which never lit up.
+
+Note: Developed with AI assistance.
